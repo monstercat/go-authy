@@ -1,3 +1,8 @@
+
+** THIS IS A FORK of [github.com/dcu/go-authy](https://github.com/dcu/go-authy) **
+
+We needed to fork it due to its dependencies changing. 
+
 # Go Client for Authy API
 
 A go library for using the Authy public API.
@@ -17,7 +22,7 @@ $ echo 'export GOPATH=$HOME/GoCode' >> ~/.bashrc
 If you already have `$GOPATH` configured then install the package:
 
 ```shell
-$ go get github.com/dcu/go-authy
+$ go get github.com/monstercat/go-authy
 ```
 
 ## Usage
@@ -26,7 +31,7 @@ To use this client you just need to import `go-authy` package and initialize it 
 
 ```go
 import(
-    "github.com/dcu/go-authy"
+    "github.com/monstercat/go-authy"
 )
 authyAPI := authy.NewAuthyAPI("#your_api_key")
 ```
@@ -168,8 +173,8 @@ if verification.Success {
 Get the code:
 
 ```shell
-$ go get -u github.com/dcu/go-authy
-$ cd $GOPATH/src/github.com/dcu/go-authy
+$ go get -u github.com/monstercat/go-authy
+$ cd $GOPATH/src/github.com/monstercat/go-authy
 ```
 
 and start coding.

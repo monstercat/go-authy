@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gojektech/heimdall"
-	"github.com/gojektech/heimdall/httpclient"
+	"github.com/gojek/heimdall"
+	"github.com/gojek/heimdall/httpclient"
 )
 
 var (

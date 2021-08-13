@@ -94,7 +94,7 @@ func (authy *Authy) RegisterUser(email string, countryCode int, phoneNumber stri
 	params.Set("user[country_code]", strconv.Itoa(countryCode))
 	params.Set("user[email]", email)
 
-	response, err := authy.DoRequest("POST", path, params)
+	response, err := authy.DoRequest(http.MethodPost, path, params)
 
 	if err != nil {
 		return nil, err
@@ -110,7 +110,7 @@ func (authy *Authy) UserStatus(id string, params url.Values) (*UserStatus, error
 
 	path := fmt.Sprintf("/protected/json/users/%s/status", id)
 
-	response, err := authy.DoRequest("GET", path, params)
+	response, err := authy.DoRequest(http.MethodGet, path, params)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (authy *Authy) UserStatus(id string, params url.Values) (*UserStatus, error
 func (authy *Authy) VerifyToken(userID string, token string, params url.Values) (*TokenVerification, error) {
 	path := "/protected/json/verify/" + url.QueryEscape(token) + "/" + url.QueryEscape(userID)
 
-	response, err := authy.DoRequest("GET", path, params)
+	response, err := authy.DoRequest(http.MethodGet, path, params)
 
 	if err != nil {
 		Logger.Println("Error while contacting the API:", err)
@@ -136,24 +136,46 @@ func (authy *Authy) VerifyToken(userID string, token string, params url.Values) 
 	return tokenVerification, err
 }
 
+func (authy *Authy) RemoveUser(id string, params url.Values) (*Response, error) {
+	path := "/protected/json/users/" + url.QueryEscape(id) + "/remove"
+	response, err := authy.DoRequest(http.MethodPost, path, params)
+	if err != nil {
+		Logger.Println("Error while contacting the API:", err)
+		return nil, err
+	}
+	defer closeResponseBody(response)
+
+	resp, err := NewResponse(response)
+	if err != nil {
+		return nil, err
+	}
+	// This is the error code for a user not existing. In this case,
+	// we can just ignore it.
+	if resp.ErrorCode == "60026" {
+		return &Response{
+			StatusCode: 200,
+		}, nil
+	}
+	return resp, nil
+}
+
 // RequestSMS requests a SMS for the given userID
-func (authy *Authy) RequestSMS(userID string, params url.Values) (*SMSRequest, error) {
+func (authy *Authy) RequestSMS(userID string, params url.Values) (*Response, error) {
 	path := "/protected/json/sms/" + url.QueryEscape(userID)
-	response, err := authy.DoRequest("GET", path, params)
+	response, err := authy.DoRequest(http.MethodGet, path, params)
 	if err != nil {
 		return nil, err
 	}
 
 	defer closeResponseBody(response)
-	smsVerification, err := NewSMSRequest(response)
-	return smsVerification, err
+	return NewResponse(response)
 }
 
 // RequestPhoneCall requests a phone call for the given user
 func (authy *Authy) RequestPhoneCall(userID string, params url.Values) (*PhoneCallRequest, error) {
 	path := "/protected/json/call/" + url.QueryEscape(userID)
 
-	response, err := authy.DoRequest("GET", path, params)
+	response, err := authy.DoRequest(http.MethodGet, path, params)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +190,7 @@ func (authy *Authy) SendApprovalRequest(userID string, message string, details D
 	addParamsForOneTouch(params, message, details)
 	path := fmt.Sprintf(`/onetouch/json/users/%s/approval_requests`, url.QueryEscape(userID))
 
-	response, err := authy.DoRequest("POST", path, params)
+	response, err := authy.DoRequest(http.MethodPost, path, params)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +202,7 @@ func (authy *Authy) SendApprovalRequest(userID string, message string, details D
 // FindApprovalRequest finds an approval request given its uuid.
 func (authy *Authy) FindApprovalRequest(uuid string, params url.Values) (*ApprovalRequest, error) {
 	path := fmt.Sprintf("/onetouch/json/approval_requests/%s", uuid)
-	response, err := authy.DoRequest("GET", path, params)
+	response, err := authy.DoRequest(http.MethodGet, path, params)
 	if err != nil {
 		return nil, err
 	}
@@ -221,7 +243,7 @@ func (authy *Authy) StartPhoneVerification(countryCode int, phoneNumber string, 
 	params.Set("via", via)
 
 	path := fmt.Sprintf("/protected/json/phones/verification/start")
-	response, err := authy.DoRequest("POST", path, params)
+	response, err := authy.DoRequest(http.MethodPost, path, params)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +259,7 @@ func (authy *Authy) CheckPhoneVerification(countryCode int, phoneNumber string, 
 	params.Set("verification_code", verificationCode)
 
 	path := fmt.Sprintf("/protected/json/phones/verification/check")
-	response, err := authy.DoRequest("GET", path, params)
+	response, err := authy.DoRequest(http.MethodGet, path, params)
 	if err != nil {
 		return nil, err
 	}
@@ -255,19 +277,19 @@ func (authy *Authy) DoRequest(method string, path string, params url.Values) (*h
 
 	var bodyReader io.Reader
 	switch method {
-	case "POST":
+	case http.MethodPost:
 		{
 			encodedParams := params.Encode()
 			bodyReader = strings.NewReader(encodedParams)
 		}
-	case "GET":
+	case http.MethodGet:
 		{
 			apiURL += "?" + params.Encode()
 		}
 	}
 
 	request, err := http.NewRequest(method, apiURL, bodyReader)
-	if method == "POST" {
+	if method == http.MethodPost {
 		request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
 
@@ -275,9 +297,7 @@ func (authy *Authy) DoRequest(method string, path string, params url.Values) (*h
 		Logger.Println("Error creating HTTP request:", err)
 		return nil, err
 	}
-	response, err := authy.Client.Do(request)
-
-	return response, err
+	return authy.Client.Do(request)
 }
 
 func (authy *Authy) buildURL(path string) string {
